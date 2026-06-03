@@ -83,13 +83,38 @@ curl -L -o ~/ComfyUI/models/checkpoints/v1-5-pruned-emaonly-fp16.safetensors \
 
 ---
 
-## Next.js アプリ（このリポジトリ本体）
+## Next.js アプリ（画像生成デモ）
+
+プロンプトを入力すると、ローカルの ComfyUI を HTTP API 経由で叩いて画像を生成し、画面に表示する
+デモ（Next.js 16 / App Router）。
+
+### セットアップ・起動
 
 ```bash
+cp .env.example .env.local   # ComfyUI のベースURL等を設定
 npm run dev
 ```
 
-<http://localhost:3000> をブラウザで開く。`app/page.tsx` を編集すると自動更新される。
+1. 先に ComfyUI を起動しておく（上記「起動方法」参照）
+2. <http://localhost:3000> を開き、プロンプトを入力して「画像を生成」
 
-> 注意: この Next.js は通常版と異なる破壊的変更を含む。コードを書く前に
+### 構成
+
+| ファイル | 役割 |
+| --- | --- |
+| `app/page.tsx` | トップページ（`Generator` を表示）|
+| `app/components/Generator.tsx` | 入力フォーム + 結果表示（Client Component）|
+| `app/api/generate/route.ts` | 生成オーケストレーション。ComfyUI `/prompt` 投入 → `/history` ポーリング |
+| `app/api/image/route.ts` | ComfyUI `/view` を同一オリジンでプロキシ（コンテナ移行に備える）|
+| `app/lib/comfyui.ts` | ワークフローJSON生成 + ComfyUI 呼び出し（server-only）|
+
+### 環境変数（`.env.local`）
+
+| 変数 | 既定値 | 説明 |
+| --- | --- | --- |
+| `COMFYUI_BASE_URL` | `http://localhost:8188` | ComfyUI の API ベースURL。コンテナからは `http://host.docker.internal:8188` |
+| `COMFYUI_CHECKPOINT` | `v1-5-pruned-emaonly-fp16.safetensors` | 使用するチェックポイント |
+
+> 注意: この Next.js は通常版と異なる破壊的変更を含む（`params`/`cookies`/`headers` が Promise、
+> GET Route Handler が既定 dynamic、Turbopack 既定 等）。コードを書く前に
 > `node_modules/next/dist/docs/` の該当ガイドを参照すること（`AGENTS.md` 参照）。
