@@ -128,6 +128,37 @@ npm run dev
 4. progress イベント → 進捗バー / executed イベント → 完成画像を表示
 ```
 
+### 動作確認手順（プロンプト例）
+
+ブラウザ（<http://localhost:3000>）をリロードしてから、各機能を確認する。
+
+**① 生成パラメータ制御** — `txt2img` タブ。シード `12345` を固定して2回生成 → 同じ絵になる（再現性）。
+サンプラーを `euler` → `dpmpp_2m` に変更、CFG を 3 と 15 で比較すると絵柄・忠実度が変わる。
+
+```
+a cozy wooden cabin in a snowy forest, warm light from windows, pine trees, highly detailed, cinematic lighting
+```
+
+**② リアルタイム進捗表示** — ステップを `40` にして生成。ボタン下に進捗バーと `%（n/40）` が伸びる。
+
+```
+an epic fantasy castle on a floating island, waterfalls, dramatic clouds, golden hour, highly detailed
+```
+
+**③ img2img** — `img2img` タブで入力画像をアップロード。変化量(denoise) `0.4`（元画像を残す）と `0.8`（大きく変化）を比較。
+
+```
+the same scene repainted in vivid anime style, vibrant colors, clean lineart
+```
+
+**④ アップスケール** — `txt2img` で 512×512、「アップスケール（×1.5 2パス）」にチェック。進捗が2パス分流れ、出力が **768×768** になる。
+
+```
+a lighthouse on a cliff at sunset, calm ocean, orange and purple sky, photorealistic
+```
+
+> 1枚あたり概ね 20〜30 秒（ステップ数・アップスケールで増減）。ComfyUI(:8188) と開発サーバ(:3000) の起動が前提。
+
 ### 環境変数（`.env.local`）
 
 | 変数 | 既定値 | 説明 |
