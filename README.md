@@ -85,8 +85,17 @@ curl -L -o ~/ComfyUI/models/checkpoints/v1-5-pruned-emaonly-fp16.safetensors \
 
 ## Next.js アプリ（画像生成デモ）
 
-プロンプトを入力すると、ローカルの ComfyUI を HTTP API 経由で叩いて画像を生成し、画面に表示する
-デモ（Next.js 16 / App Router）。
+プロンプトを入力すると、ローカルの ComfyUI を HTTP/WebSocket API 経由で叩いて画像を生成し、
+画面に表示するデモ（Next.js 16 / App Router）。
+
+### 機能
+
+- **txt2img / img2img**（入力画像アップロード → 変換、denoise で変化量を制御）
+- **生成パラメータ制御**: ネガティブプロンプト / サイズ / ステップ / CFG / シード / サンプラー / スケジューラ
+- **リアルタイム進捗表示**: ComfyUI の WebSocket `/ws` をサーバーで購読し、SSE で進捗(%)を転送
+- **アップスケール**: `LatentUpscaleBy` + 低 denoise の2パス目（hires-fix 風、追加モデル不要）
+
+サンプラー / スケジューラの一覧は ComfyUI の `object_info` から動的に取得（ComfyUI 停止時はフォールバック）。
 
 ### セットアップ・起動
 
@@ -102,11 +111,53 @@ npm run dev
 
 | ファイル | 役割 |
 | --- | --- |
-| `app/page.tsx` | トップページ（`Generator` を表示）|
-| `app/components/Generator.tsx` | 入力フォーム + 結果表示（Client Component）|
-| `app/api/generate/route.ts` | 生成オーケストレーション。ComfyUI `/prompt` 投入 → `/history` ポーリング |
+| `app/page.tsx` | トップページ（Server Component。`object_info` から選択肢取得 → `Generator` へ）|
+| `app/components/Generator.tsx` | 入力フォーム + 進捗バー + 結果表示（Client Component）|
+| `app/api/generate/route.ts` | ワークフローを `/prompt` に投入し `prompt_id` を返す（POST）|
+| `app/api/progress/route.ts` | ComfyUI `/ws` を購読し進捗・完成画像を SSE で転送（GET）|
+| `app/api/upload/route.ts` | img2img 入力画像を `/upload/image` へ中継（POST）|
 | `app/api/image/route.ts` | ComfyUI `/view` を同一オリジンでプロキシ（コンテナ移行に備える）|
 | `app/lib/comfyui.ts` | ワークフローJSON生成 + ComfyUI 呼び出し（server-only）|
+
+### 生成フロー（進捗の取りこぼし防止）
+
+```
+1. ブラウザが EventSource で /api/progress に接続
+2. サーバーが ComfyUI /ws に接続し、開通したら {type:"ready"} を送る
+3. ブラウザは ready を受けてから /api/generate を投入（client_id で紐付け）
+4. progress イベント → 進捗バー / executed イベント → 完成画像を表示
+```
+
+### 動作確認手順（プロンプト例）
+
+ブラウザ（<http://localhost:3000>）をリロードしてから、各機能を確認する。
+
+**① 生成パラメータ制御** — `txt2img` タブ。シード `12345` を固定して2回生成 → 同じ絵になる（再現性）。
+サンプラーを `euler` → `dpmpp_2m` に変更、CFG を 3 と 15 で比較すると絵柄・忠実度が変わる。
+
+```
+a cozy wooden cabin in a snowy forest, warm light from windows, pine trees, highly detailed, cinematic lighting
+```
+
+**② リアルタイム進捗表示** — ステップを `40` にして生成。ボタン下に進捗バーと `%（n/40）` が伸びる。
+
+```
+an epic fantasy castle on a floating island, waterfalls, dramatic clouds, golden hour, highly detailed
+```
+
+**③ img2img** — `img2img` タブで入力画像をアップロード。変化量(denoise) `0.4`（元画像を残す）と `0.8`（大きく変化）を比較。
+
+```
+the same scene repainted in vivid anime style, vibrant colors, clean lineart
+```
+
+**④ アップスケール** — `txt2img` で 512×512、「アップスケール（×1.5 2パス）」にチェック。進捗が2パス分流れ、出力が **768×768** になる。
+
+```
+a lighthouse on a cliff at sunset, calm ocean, orange and purple sky, photorealistic
+```
+
+> 1枚あたり概ね 20〜30 秒（ステップ数・アップスケールで増減）。ComfyUI(:8188) と開発サーバ(:3000) の起動が前提。
 
 ### 環境変数（`.env.local`）
 
