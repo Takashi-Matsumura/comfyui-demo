@@ -8,6 +8,8 @@ type Mode = "txt2img" | "img2img";
 interface GeneratorProps {
   samplers: string[];
   schedulers: string[];
+  // ブラウザから開く ComfyUI 画面の URL（サーバ専用の接続先とは別に指定）。
+  comfyuiUrl: string;
 }
 
 // ラベル付きスライダー（数値入力）。
@@ -45,7 +47,7 @@ function Slider({
   );
 }
 
-export default function Generator({ samplers, schedulers }: GeneratorProps) {
+export default function Generator({ samplers, schedulers, comfyuiUrl }: GeneratorProps) {
   const [mode, setMode] = useState<Mode>("txt2img");
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -389,6 +391,17 @@ export default function Generator({ samplers, schedulers }: GeneratorProps) {
       >
         ワークフロー JSON をダウンロード
       </button>
+
+      {/* ComfyUI 画面を新しいタブで開く */}
+      <a
+        href={comfyuiUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="ComfyUI の画面を新しいタブで開きます。"
+        className="flex h-11 items-center justify-center rounded-full border border-zinc-300 px-6 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        ComfyUI を開く ↗
+      </a>
 
       {error && (
         <p className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
