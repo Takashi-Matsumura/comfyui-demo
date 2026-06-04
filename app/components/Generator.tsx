@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { MANUAL_PRESETS } from "../lib/presets";
 
 type Mode = "txt2img" | "img2img";
 
@@ -92,6 +93,12 @@ export default function Generator({ samplers, schedulers }: GeneratorProps) {
   function cleanup() {
     esRef.current?.close();
     esRef.current = null;
+  }
+
+  // プリセットを選択 → ポジティブ/ネガティブ両欄へ流し込む。
+  function applyPreset(preset: (typeof MANUAL_PRESETS)[number]) {
+    setPrompt(preset.prompt);
+    setNegativePrompt(preset.negativePrompt);
   }
 
   function handleGenerate() {
@@ -212,6 +219,26 @@ export default function Generator({ samplers, schedulers }: GeneratorProps) {
         </div>
       )}
 
+      {/* サンプルプロンプト（操作マニュアル向けプリセット） */}
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          サンプルプロンプト（操作マニュアル向け）
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {MANUAL_PRESETS.map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => applyPreset(preset)}
+              title={preset.description}
+              className="rounded-full border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 transition-colors hover:border-zinc-500 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* プロンプト */}
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium text-zinc-700 dark:text-zinc-300">プロンプト（英語推奨）</span>
@@ -236,8 +263,12 @@ export default function Generator({ samplers, schedulers }: GeneratorProps) {
         />
       </label>
 
-      {/* パラメータ */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* 詳細パラメータ（デフォルトは折りたたみ） */}
+      <details className="rounded-lg border border-zinc-300 dark:border-zinc-700">
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          詳細設定（サイズ・ステップ・CFG・シードなど）
+        </summary>
+        <div className="grid grid-cols-2 gap-4 border-t border-zinc-200 px-4 py-4 dark:border-zinc-800">
         {mode === "txt2img" && (
           <>
             <Slider label="幅" value={width} min={256} max={1024} step={64} onChange={setWidth} />
@@ -297,7 +328,8 @@ export default function Generator({ samplers, schedulers }: GeneratorProps) {
           />
           アップスケール（×1.5 2パス）
         </label>
-      </div>
+        </div>
+      </details>
 
       {/* 生成ボタン */}
       <button
