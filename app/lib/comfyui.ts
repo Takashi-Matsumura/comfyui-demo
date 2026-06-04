@@ -51,7 +51,8 @@ interface ComfyNode {
 
 // パラメータからワークフロー(API フォーマット)を組み立てる。
 // モード・アップスケールの有無でノードグラフを動的に構成する。
-function buildWorkflow(params: GenerateParams): Record<string, ComfyNode> {
+// /api/workflow からも再利用し、ComfyUI へ読み込ませる JSON として書き出す。
+export function buildWorkflow(params: GenerateParams): Record<string, ComfyNode> {
   const seed = params.seed ?? Math.floor(Math.random() * 1_000_000_000_000_000);
   const steps = params.steps ?? 20;
   const cfg = params.cfg ?? 8;

@@ -8,6 +8,8 @@ type Mode = "txt2img" | "img2img";
 interface GeneratorProps {
   samplers: string[];
   schedulers: string[];
+  // ブラウザから開く ComfyUI 画面の URL（サーバ専用の接続先とは別に指定）。
+  comfyuiUrl: string;
 }
 
 // ラベル付きスライダー（数値入力）。
@@ -45,7 +47,7 @@ function Slider({
   );
 }
 
-export default function Generator({ samplers, schedulers }: GeneratorProps) {
+export default function Generator({ samplers, schedulers, comfyuiUrl }: GeneratorProps) {
   const [mode, setMode] = useState<Mode>("txt2img");
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -101,6 +103,57 @@ export default function Generator({ samplers, schedulers }: GeneratorProps) {
     setNegativePrompt(preset.negativePrompt);
   }
 
+  // 生成 API・ワークフロー書き出しで共通利用するパラメータ（clientId を除く）。
+  function buildRequestParams() {
+    return {
+      mode,
+      prompt: prompt.trim(),
+      negativePrompt: negativePrompt.trim() || undefined,
+      width,
+      height,
+      steps,
+      cfg,
+      seed: seed.trim() === "" ? undefined : Number(seed),
+      samplerName,
+      scheduler,
+      denoise,
+      upscale,
+      inputImage: mode === "img2img" ? inputImage : undefined,
+    };
+  }
+
+  // 現在の入力値で API フォーマットのワークフロー JSON を取得し、ダウンロードする。
+  // ComfyUI にドラッグ＆ドロップすれば同じグラフを再現できる。
+  async function handleExportWorkflow() {
+    if (!prompt.trim() || isLoading) return;
+    if (mode === "img2img" && !inputImage) {
+      setError("img2img では先に入力画像をアップロードしてください");
+      return;
+    }
+    setError(null);
+    try {
+      const res = await fetch("/api/workflow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildRequestParams()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "ワークフローの取得に失敗しました");
+
+      const blob = new Blob([JSON.stringify(data.workflow, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "comfyui-workflow.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ワークフローの取得に失敗しました");
+    }
+  }
+
   function handleGenerate() {
     const trimmed = prompt.trim();
     if (!trimmed || isLoading) return;
@@ -115,22 +168,7 @@ export default function Generator({ samplers, schedulers }: GeneratorProps) {
     setProgress(null);
 
     const clientId = crypto.randomUUID();
-    const params = {
-      clientId,
-      mode,
-      prompt: trimmed,
-      negativePrompt: negativePrompt.trim() || undefined,
-      width,
-      height,
-      steps,
-      cfg,
-      seed: seed.trim() === "" ? undefined : Number(seed),
-      samplerName,
-      scheduler,
-      denoise,
-      upscale,
-      inputImage: mode === "img2img" ? inputImage : undefined,
-    };
+    const params = { clientId, ...buildRequestParams() };
 
     // 1. SSE 接続 → ready を受けてから生成投入（進捗取りこぼし防止）
     const es = new EventSource(`/api/progress?clientId=${clientId}`);
@@ -342,6 +380,28 @@ export default function Generator({ samplers, schedulers }: GeneratorProps) {
       >
         {isLoading ? "生成中…" : "画像を生成"}
       </button>
+
+      {/* ワークフロー書き出し（ComfyUI で開くための API フォーマット JSON） */}
+      <button
+        type="button"
+        onClick={handleExportWorkflow}
+        disabled={isLoading || !prompt.trim()}
+        title="現在の設定を ComfyUI のワークフロー JSON として保存します。ComfyUI にドラッグ＆ドロップで読み込めます。"
+        className="flex h-11 items-center justify-center rounded-full border border-zinc-300 px-6 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        ワークフロー JSON をダウンロード
+      </button>
+
+      {/* ComfyUI 画面を新しいタブで開く */}
+      <a
+        href={comfyuiUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="ComfyUI の画面を新しいタブで開きます。"
+        className="flex h-11 items-center justify-center rounded-full border border-zinc-300 px-6 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        ComfyUI を開く ↗
+      </a>
 
       {error && (
         <p className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">

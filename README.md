@@ -94,6 +94,10 @@ curl -L -o ~/ComfyUI/models/checkpoints/v1-5-pruned-emaonly-fp16.safetensors \
 - **生成パラメータ制御**: ネガティブプロンプト / サイズ / ステップ / CFG / シード / サンプラー / スケジューラ
 - **リアルタイム進捗表示**: ComfyUI の WebSocket `/ws` をサーバーで購読し、SSE で進捗(%)を転送
 - **アップスケール**: `LatentUpscaleBy` + 低 denoise の2パス目（hires-fix 風、追加モデル不要）
+- **操作マニュアル向けサンプルプロンプト**: ワンクリックでポジティブ/ネガティブ両欄に流し込むプリセット5種
+- **左右2カラムレイアウト**: 左に操作パネル、右に進捗・結果（`lg` 以上。詳細パラメータは折りたたみ）
+- **ワークフロー JSON エクスポート**: 現在の設定を ComfyUI の API フォーマット JSON で書き出し（ComfyUI にドラッグ＆ドロップで同じグラフを再現）
+- **ComfyUI を開く**: ComfyUI 画面を新しいタブで開くボタン
 
 サンプラー / スケジューラの一覧は ComfyUI の `object_info` から動的に取得（ComfyUI 停止時はフォールバック）。
 
@@ -117,7 +121,9 @@ npm run dev
 | `app/api/progress/route.ts` | ComfyUI `/ws` を購読し進捗・完成画像を SSE で転送（GET）|
 | `app/api/upload/route.ts` | img2img 入力画像を `/upload/image` へ中継（POST）|
 | `app/api/image/route.ts` | ComfyUI `/view` を同一オリジンでプロキシ（コンテナ移行に備える）|
+| `app/api/workflow/route.ts` | 同じパラメータから API フォーマットのワークフロー JSON を書き出す（POST）|
 | `app/lib/comfyui.ts` | ワークフローJSON生成 + ComfyUI 呼び出し（server-only）|
+| `app/lib/presets.ts` | 操作マニュアル向けサンプルプロンプトのプリセット定義 |
 
 ### 生成フロー（進捗の取りこぼし防止）
 
@@ -159,11 +165,16 @@ a lighthouse on a cliff at sunset, calm ocean, orange and purple sky, photoreali
 
 > 1枚あたり概ね 20〜30 秒（ステップ数・アップスケールで増減）。ComfyUI(:8188) と開発サーバ(:3000) の起動が前提。
 
+**⑤ サンプルプロンプト（操作マニュアル向け）** — プロンプト欄上のプリセットボタン（フラットアイコン図解 / UIスクリーンショット風 / 手順イラスト / 注意書きピクトグラム / 等角図）をクリックすると、ポジティブ/ネガティブ両欄に文例が入る。そのまま生成して画風を比較できる。
+
+**⑥ ワークフロー JSON エクスポート → ComfyUI で再現** — 設定後「ワークフロー JSON をダウンロード」で `comfyui-workflow.json` を保存。「ComfyUI を開く ↗」で開いた ComfyUI 画面に、その JSON をドラッグ＆ドロップするとノードグラフが復元され、同じ生成を ComfyUI 上で実行・編集できる。アプリ（自然言語UI）が裏で組んでいたグラフを学べる導線。
+
 ### 環境変数（`.env.local`）
 
 | 変数 | 既定値 | 説明 |
 | --- | --- | --- |
 | `COMFYUI_BASE_URL` | `http://localhost:8188` | ComfyUI の API ベースURL。コンテナからは `http://host.docker.internal:8188` |
+| `COMFYUI_PUBLIC_URL` | `http://localhost:8188` | 「ComfyUI を開く」ボタンがブラウザで開く URL（サーバ専用の接続先とは別。ブラウザから到達できる URL を指定）|
 | `COMFYUI_CHECKPOINT` | `v1-5-pruned-emaonly-fp16.safetensors` | 使用するチェックポイント |
 
 > 注意: この Next.js は通常版と異なる破壊的変更を含む（`params`/`cookies`/`headers` が Promise、
