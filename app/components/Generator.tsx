@@ -178,7 +178,9 @@ export default function Generator({ samplers, schedulers }: GeneratorProps) {
     progress && progress.max > 0 ? Math.round((progress.value / progress.max) * 100) : 0;
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start">
+      {/* 左カラム: 操作パネル */}
+      <div className="flex w-full flex-col gap-6 lg:w-1/2">
       {/* モード切替 */}
       <div className="flex w-full rounded-lg border border-zinc-300 p-1 dark:border-zinc-700">
         {(["txt2img", "img2img"] as Mode[]).map((m) => (
@@ -346,7 +348,10 @@ export default function Generator({ samplers, schedulers }: GeneratorProps) {
           {error}
         </p>
       )}
+      </div>
 
+      {/* 右カラム: 進捗・結果 */}
+      <div className="flex w-full flex-col gap-4 lg:sticky lg:top-8 lg:w-1/2">
       {/* 進捗バー */}
       {isLoading && (
         <div className="flex flex-col gap-1">
@@ -370,6 +375,7 @@ export default function Generator({ samplers, schedulers }: GeneratorProps) {
         ) : (
           !isLoading && <span className="text-sm text-zinc-400">ここに生成画像が表示されます</span>
         )}
+      </div>
       </div>
     </div>
   );
