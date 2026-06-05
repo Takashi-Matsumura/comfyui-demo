@@ -169,6 +169,46 @@ a lighthouse on a cliff at sunset, calm ocean, orange and purple sky, photoreali
 
 **⑥ ワークフロー JSON エクスポート → ComfyUI で再現** — 設定後「ワークフロー JSON をダウンロード」で `comfyui-workflow.json` を保存。「ComfyUI を開く ↗」で開いた ComfyUI 画面に、その JSON をドラッグ＆ドロップするとノードグラフが復元され、同じ生成を ComfyUI 上で実行・編集できる。アプリ（自然言語UI）が裏で組んでいたグラフを学べる導線。
 
+---
+
+## サンプルワークフロー（`sample-workflows/`）
+
+ComfyUI の組込ノードを学ぶための、すぐ読み込める API フォーマットの JSON 集。
+「ComfyUI を開く ↗」で開いた画面に **ドラッグ＆ドロップ**すればノードグラフが復元される。
+
+| ファイル | 内容 | 追加で必要なもの |
+| --- | --- | --- |
+| `controlnet-canny.json` | **ControlNet（Canny）** — 参照画像の輪郭を抽出し、その構図に沿って生成。構図は固定したままプロンプトで絵柄だけ変えられる | Canny 用 ControlNet モデル（下記）|
+
+### ControlNet（Canny）の使い方
+
+1. **モデルを導入**（SD1.5 用、約 690MB）
+
+   ```bash
+   curl -L -o ~/ComfyUI/models/controlnet/control_v11p_sd15_canny_fp16.safetensors \
+     https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_v11p_sd15_canny_fp16.safetensors
+   ```
+
+   導入後、ComfyUI を再起動するとノードの `control_net_name` に表示される。
+
+2. **参照画像を用意** — `controlnet-canny.json` の `LoadImage` は `example.png` を参照している。
+   ComfyUI 画面で任意の画像（スクショ等）に差し替えるか、`~/ComfyUI/input/` に `example.png` を置く。
+
+3. **読み込んで実行** — JSON をドラッグ＆ドロップ → 実行。`~/ComfyUI/output/controlnet_canny_*.png` に保存される。
+
+**グラフ構成**
+
+```
+LoadImage(参照画像) ─► Canny(輪郭抽出) ─┐
+                                        ▼
+CheckpointLoader ─► CLIPTextEncode(正) ─► ControlNetApplyAdvanced ─► KSampler ─► VAEDecode ─► SaveImage
+              └──► CLIPTextEncode(負) ─►  ▲
+                   ControlNetLoader ──────┘
+```
+
+> 試しどころ: `ControlNetApplyAdvanced` の `strength`（既定 1.0）を下げると拘束が緩む。
+> `end_percent` を下げると生成の後半は自由になる。プロンプトだけ変えて連続生成すると、構図固定の効果が体感できる。
+
 ### 環境変数（`.env.local`）
 
 | 変数 | 既定値 | 説明 |
